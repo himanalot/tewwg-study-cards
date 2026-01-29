@@ -81,7 +81,7 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
             card.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
             card.answer.toLowerCase().includes(searchQuery.toLowerCase())
         )
-        .slice(0, 10)
+        .slice(0, 20)
     : [];
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
     <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto px-4">
       {/* Search Modal */}
       {isSearchOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20 px-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 px-4">
           <div className="bg-[--bg-primary] rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="flex items-center gap-3 p-4 border-b border-[--border]">
               <Search size={18} className="text-[--text-secondary]" />
@@ -163,7 +163,7 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
               </button>
             </div>
             {searchQuery.trim() && (
-              <div className="max-h-80 overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto">
                 {searchResults.length > 0 ? (
                   searchResults.map(({ card, index }) => (
                     <button
