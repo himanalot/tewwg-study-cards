@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Shuffle, Download } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Shuffle, Download, Search, X } from 'lucide-react';
 import type { Flashcard } from '@/lib/flashcards';
 
 interface FlashcardViewerProps {
@@ -11,6 +11,9 @@ interface FlashcardViewerProps {
 export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const currentCard = cards[currentIndex];
 
@@ -53,8 +56,52 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
     URL.revokeObjectURL(link.href);
   }, [cards]);
 
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true);
+    setSearchQuery('');
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  }, []);
+
+  const goToCard = useCallback((index: number) => {
+    setCurrentIndex(index);
+    setIsFlipped(false);
+    closeSearch();
+  }, [closeSearch]);
+
+  const searchResults = searchQuery.trim()
+    ? cards
+        .map((card, index) => ({ card, index }))
+        .filter(
+          ({ card }) =>
+            card.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            card.answer.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, 10)
+    : [];
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Handle Cmd+F or Ctrl+F for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
+
+      // Handle Escape to close search
+      if (e.key === 'Escape' && isSearchOpen) {
+        closeSearch();
+        return;
+      }
+
+      // Don't handle other keys when search is open
+      if (isSearchOpen) return;
+
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         handleFlip();
@@ -67,7 +114,7 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleFlip, handleNext, handlePrevious]);
+  }, [handleFlip, handleNext, handlePrevious, isSearchOpen, openSearch, closeSearch]);
 
   // Touch handling for mobile
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -93,19 +140,81 @@ export default function FlashcardViewer({ cards }: FlashcardViewerProps) {
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto px-4">
+      {/* Search Modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-20 px-4">
+          <div className="bg-[--bg-primary] rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center gap-3 p-4 border-b border-[--border]">
+              <Search size={18} className="text-[--text-secondary]" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search cards..."
+                className="flex-1 bg-transparent outline-none text-[--text-primary] placeholder:text-[--text-secondary]"
+              />
+              <button
+                onClick={closeSearch}
+                className="p-1 hover:bg-[--bg-secondary] rounded-lg transition-colors"
+                aria-label="Close search"
+              >
+                <X size={18} className="text-[--text-secondary]" />
+              </button>
+            </div>
+            {searchQuery.trim() && (
+              <div className="max-h-80 overflow-y-auto">
+                {searchResults.length > 0 ? (
+                  searchResults.map(({ card, index }) => (
+                    <button
+                      key={index}
+                      onClick={() => goToCard(index)}
+                      className="w-full text-left p-4 hover:bg-[--bg-secondary] border-b border-[--border] last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-[--text-secondary] bg-[--bg-secondary] px-2 py-0.5 rounded">
+                          #{index + 1}
+                        </span>
+                      </div>
+                      <p className="text-sm text-[--text-primary] line-clamp-2">
+                        {card.question}
+                      </p>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-[--text-secondary]">
+                    No cards found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header with progress */}
       <div className="w-full flex items-center justify-between">
         <span className="text-sm text-[--text-secondary]">
           {currentIndex + 1} / {cards.length}
         </span>
-        <button
-          onClick={exportToCSV}
-          className="btn btn-secondary"
-          aria-label="Export to spreadsheet"
-        >
-          <Download size={16} />
-          <span className="hidden sm:inline">Export</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openSearch}
+            className="btn btn-secondary"
+            aria-label="Search cards"
+          >
+            <Search size={16} />
+            <span className="hidden sm:inline">Search</span>
+          </button>
+          <button
+            onClick={exportToCSV}
+            className="btn btn-secondary"
+            aria-label="Export to spreadsheet"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
